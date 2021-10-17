@@ -60,11 +60,30 @@ let generate_conv_impl ~ctxt (_rec_flag, type_declarations) =
             Conv.impl_to_jv ~name ~loc fields)
       type_declarations
 
+let opt_impl_generator ~ctxt (_rec_flag, type_declarations) =
+  let loc = Expansion_context.Deriver.derived_item_loc ctxt in
+  List.map
+    (fun (td : type_declaration) ->
+      match td with
+      | { ptype_kind = Ptype_abstract | Ptype_variant _ | Ptype_open; _ } ->
+          Location.raise_errorf ~loc
+            "Cannot derive optional functions for non record types"
+      | {
+       ptype_kind = Ptype_record fields;
+       ptype_loc = loc;
+       ptype_name = name;
+       _;
+      } ->
+          Opt.impl_to_jv ~name ~loc fields)
+    type_declarations
+
 let accessor_impl_generator =
   Deriving.Generator.V2.make_noarg generate_accessor_impl
 
 let conv_impl_generator = Deriving.Generator.V2.make_noarg generate_conv_impl
+let opt_impl_generator = Deriving.Generator.V2.make_noarg opt_impl_generator
 
 let () =
   Deriving.add "brr" ~str_type_decl:accessor_impl_generator |> Deriving.ignore;
-  Deriving.add "brr_jv" ~str_type_decl:conv_impl_generator |> Deriving.ignore
+  Deriving.add "brr_jv" ~str_type_decl:conv_impl_generator |> Deriving.ignore;
+  Deriving.add "brr_opt" ~str_type_decl:opt_impl_generator |> Deriving.ignore
