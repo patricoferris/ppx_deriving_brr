@@ -2,7 +2,9 @@ module Shape :
   sig
     type t
     type opt
-    val opt : ?width:int -> ?height:int -> ?two_d:bool -> unit -> opt
+    val opt :
+      ?width:int ->
+        ?height:int -> ?two_d:bool -> urls:string array -> unit -> opt
     val create : ?opt:opt -> string -> t
   end =
   struct
@@ -11,11 +13,13 @@ module Shape :
       {
       width: int option ;
       height: int option ;
-      two_d: bool option }[@@deriving brr_opt]
+      two_d: bool option ;
+      urls: string array }[@@deriving brr_opt]
     include
       struct
-        let opt_internal_to_jv ?width  ?height  ?two_d  () =
+        let opt_internal_to_jv ?width  ?height  ?two_d  ~urls  () =
           let jv = Jv.obj [||] in
+          Jv.set jv "urls" (Jv.of_array Jv.of_string urls);
           ((function | None -> () | Some two_d -> Jv.Bool.set jv "twoD" two_d))
             two_d;
           ((function

@@ -71,5 +71,5 @@ let rec type_to_setter key typ =
       [%expr Jv.set jv [%e key'] (Jv.of_list [%e conv] [%e var])]
   | [%type: [%t? typ'] array] ->
       let conv = type_to_conv ~to_:false typ' in
-      [%expr Jv.set jv [%e key'] (Jv.of_array [%e conv] jv)]
+      [%expr Jv.set jv [%e key'] (Jv.of_array [%e conv] [%e var])]
   | _ -> assert false

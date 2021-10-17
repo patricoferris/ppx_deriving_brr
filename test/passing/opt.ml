@@ -2,7 +2,9 @@ module Shape : sig
   type t
   type opt
 
-  val opt : ?width:int -> ?height:int -> ?two_d:bool -> unit -> opt
+  val opt :
+    ?width:int -> ?height:int -> ?two_d:bool -> urls:string array -> unit -> opt
+
   val create : ?opt:opt -> string -> t
 end = struct
   type t = Jv.t
@@ -11,6 +13,7 @@ end = struct
     width : int option;
     height : int option;
     two_d : bool option;
+    urls : string array;
   }
   [@@deriving brr_opt]
 
