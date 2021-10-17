@@ -1,0 +1,37 @@
+type t = {
+  name: string ;
+  age: int ;
+  height: int option ;
+  books: string list }[@@deriving brr_jv]
+include
+  struct
+    let of_jv jv =
+      let books = let jv = Jv.get jv "books" in Jv.to_list Jv.to_string jv in
+      let height =
+        let jv = Jv.get jv "height" in
+        if Jv.is_none jv then None else Some (Jv.to_int jv) in
+      let age = Jv.Int.get jv "age" in
+      let name = (Jv.Jstr.get jv "name") |> Jstr.to_string in
+      { name; age; height; books }
+    let to_jv { name; age; height; books } =
+      let jv = Jv.obj [||] in
+      Jv.set jv "books" (Jv.of_list Jv.of_string books);
+      ((function | None -> () | Some height -> Jv.Int.set jv "height" height))
+        height;
+      Jv.Int.set jv "age" age;
+      Jv.Jstr.set jv "name" (Jstr.v name);
+      jv
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let pr { name; age; height; books } =
+  Format.printf "name: %s; age: %i; height: %a; books: %a" name age
+    (let open Format in pp_print_option pp_print_int) height
+    (let open Format in pp_print_list pp_print_string) books
+let () =
+  let jv =
+    Jv.obj
+      [|("name", (Jv.of_string "Bactrian"));("age", (Jv.of_int 100));
+        ("height", (Jv.of_int 200));("books",
+                                      (Jv.of_jstr_list
+                                         [Jstr.v "Alice in Wonderland"]))|] in
+  let p = of_jv jv in
+  let jv' = to_jv p in let p' = of_jv jv' in assert (p = p'); pr p

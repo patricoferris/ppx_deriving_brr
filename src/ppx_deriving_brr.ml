@@ -17,21 +17,7 @@
 open Ppxlib
 open Ast_builder.Default
 
-let accessor_intf ~ptype_name (ld : label_declaration) =
-  let loc = ld.pld_loc in
-  psig_value ~loc
-    {
-      pval_name = ld.pld_name;
-      pval_type =
-        ptyp_arrow ~loc Nolabel
-          (ptyp_constr ~loc { loc; txt = lident ptype_name.txt } [])
-          ld.pld_type;
-      pval_attributes = [];
-      pval_loc = loc;
-      pval_prim = [];
-    }
-
-let generate_impl ~ctxt (_rec_flag, type_declarations) =
+let generate_accessor_impl ~ctxt (_rec_flag, type_declarations) =
   let loc = Expansion_context.Deriver.derived_item_loc ctxt in
   List.map
     (fun (td : type_declaration) ->
@@ -43,23 +29,42 @@ let generate_impl ~ctxt (_rec_flag, type_declarations) =
     type_declarations
   |> List.concat
 
-let generate_intf ~ctxt (_rec_flag, type_declarations) =
+let generate_conv_impl ~ctxt (_rec_flag, type_declarations) =
   let loc = Expansion_context.Deriver.derived_item_loc ctxt in
   List.map
     (fun (td : type_declaration) ->
       match td with
       | { ptype_kind = Ptype_abstract | Ptype_variant _ | Ptype_open; _ } ->
           Location.raise_errorf ~loc
-            "Cannot derive accessors for non record types"
-      | { ptype_kind = Ptype_record fields; ptype_name; _ } ->
-          List.map (accessor_intf ~ptype_name) fields)
+            "Cannot derive conversion functions for non record types"
+      | {
+       ptype_kind = Ptype_record fields;
+       ptype_loc = loc;
+       ptype_name = name;
+       _;
+      } ->
+          Conv.impl_of_jv ~name ~loc fields)
     type_declarations
-  |> List.concat
+  @ List.map
+      (fun (td : type_declaration) ->
+        match td with
+        | { ptype_kind = Ptype_abstract | Ptype_variant _ | Ptype_open; _ } ->
+            Location.raise_errorf ~loc
+              "Cannot derive conversion functions for non record types"
+        | {
+         ptype_kind = Ptype_record fields;
+         ptype_loc = loc;
+         ptype_name = name;
+         _;
+        } ->
+            Conv.impl_to_jv ~name ~loc fields)
+      type_declarations
 
-let impl_generator = Deriving.Generator.V2.make_noarg generate_impl
+let accessor_impl_generator =
+  Deriving.Generator.V2.make_noarg generate_accessor_impl
 
-let intf_generator = Deriving.Generator.V2.make_noarg generate_intf
+let conv_impl_generator = Deriving.Generator.V2.make_noarg generate_conv_impl
 
 let () =
-  Deriving.add "brr" ~str_type_decl:impl_generator ~sig_type_decl:intf_generator
-  |> Deriving.ignore
+  Deriving.add "brr" ~str_type_decl:accessor_impl_generator |> Deriving.ignore;
+  Deriving.add "brr_jv" ~str_type_decl:conv_impl_generator |> Deriving.ignore
