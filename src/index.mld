@@ -1,0 +1,141 @@
+{1 ppx_deriving_brr}
+
+Hi! Thanks for having a look at the documentation for this ppx. It is a
+{{: https://ppxlib.readthedocs.io/en/latest/ppx-for-plugin-authors.html#writing-a-deriver} deriver} 
+which means it generates OCaml code from type definitions. Not only that, 
+but it generates useful OCaml code to work with {{: https://erratique.ch/software/brr/doc/index.html} brr}!
+
+{2 What is brr?}
+
+{! Brr} is a library for interacting with your browser via {{: https://ocsigen.org/js_of_ocaml/latest/manual/overview} js_of_ocaml}.
+It provides a more "OCaml"-way of doing this interaction instead of the object system that {! Js_of_ocaml}
+uses. For example, if we want to add children to an element:
+
+{[
+open Brr
+
+let f () = 
+  match Document.find_el_by_id G.document @@ Jstr.v "id" with 
+    | Some el -> El.append_children el [ El.txt' "Heya!" ]
+    | None -> ()
+]}
+
+Awesome! In order to interact with the browser, {! Brr} defines a Foreign Function Interface (FFI).
+This is a mechanism to bridge the OCaml-Javascript chasm. This FFI is of course made public so bindings 
+can be written for any Javascript library.
+
+As a quick example, imagine a library as some object for a person with a name and optional age. A 
+suitable binding might look something like
+
+{[
+open Brr
+
+module Person : sig 
+  type t 
+  val name : t -> Jstr.t 
+  val age : t -> int option 
+end = struct 
+  type t = Jv.t
+  let name t = Jv.Jstr.get t "name"
+  let age t = Jv.Int.find t "age"
+end
+]}
+
+You might be wondering why not define the full OCaml type for the value, i.e. 
+
+{[
+type t = {
+  name : string;
+  age : int option;
+}
+]}
+
+That's a perfectly reasonable thing to do. Something to bear in mind though is that
+converting out of the Javascript value into the OCaml one does not come for free.
+There's an associated performance and memory cost to moving around OCaml values (coming 
+from a Javascript value). If you can avoid converting then I would recommend it.
+
+{2 What does ppx_deriving_brr do?}
+
+You might have caught on that there is a nice connection between the OCaml type and 
+the code written for accessing the Javascript values (you could have setters too).
+
+Quick note before we dive in, unless you specify otherwise the derivers will always 
+implicitly convert from snake-case (e.g. [last_name]) to camel-case (e.g. [lastName]).
+99% of the time this is probably useful for writing Javascript bindings.
+
+{3 Getters and Setters}
+
+You can define in your implementation an internal type for the deriver to reason about
+which the rest of the code be generated from.
+
+{[
+module Person = struct
+  type internal = {
+    name : string;
+    age : int option;
+  }[@@deriving brr]
+end
+]}
+
+This will derive the functions from above. Note there's no corresponding interface part 
+of this deriver. Why? One, you should probably document what the getters and setters etc. do.
+And two, you would have to leak the [internal] type to the interface.
+
+{3 Optional Arguments} 
+
+Lots of Javascript value constructing functions take a few arguments and then some object 
+of optional arguments. In {! Brr} the recommended way to do this is the following:
+
+{[
+type opts = Jv.t 
+
+let opts ?age () = 
+  let o = Jv.obj [||] in 
+  Jv.Int.set_if_some o "age" age;
+  o
+]}
+
+Again, we can do the same trick is above and generate this function and type using an internal 
+representation that is only ever used for this purpose.
+
+{[
+type internal = {
+  age : int
+} [@@deriving brr.opts]
+]}
+
+Note, you don't need to define these as optional type that is implicit in the thing we are constructing.
+
+{3 But I really do want the OCaml representation? }
+
+Sure thing, you can ask for [jv] to get converters to and from the OCaml representation. So instead of: 
+
+{[
+type t = { 
+  name : string;
+  age : int option;
+}
+
+let of_jv jv = 
+  let name = Jv.Jstr.get jv "name" |> Jstr.to_string in 
+  let age = Jv.Int.find jv "age" in 
+  { name; age }
+
+let to_jv { name; age } =
+  let o = Jv.obj [||] in 
+  Jv.Jstr.set o "name" (Jstr.v name);
+  Jv.Int.set_if_some o "age" age;
+  o
+]}
+
+You can just write
+
+{[
+type t = {
+  name : string;
+  age : int option;
+}[@@deriving brr.jv]
+]}
+
+This time, interface version are supported :)

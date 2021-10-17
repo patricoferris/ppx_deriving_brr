@@ -1,0 +1,30 @@
+type t = Jv.t
+type internal =
+  {
+  name: string ;
+  nick_name: string option ;
+  age: int option ;
+  books: Jstr.t list }[@@deriving brr]
+include
+  struct
+    let name jv = (Jv.Jstr.get jv "name") |> Jstr.to_string
+    let nick_name jv =
+      let jv = Jv.get jv "nickName" in
+      if Jv.is_none jv then None else Some (Jv.to_string jv)
+    let age jv =
+      let jv = Jv.get jv "age" in
+      if Jv.is_none jv then None else Some (Jv.to_int jv)
+    let books jv = let jv = Jv.get jv "books" in Jv.to_list Jv.to_jstr jv
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+let () =
+  let o =
+    Jv.obj
+      [|("name", (Jv.of_string "Bactrian"));("nickName", (Jv.of_string "B"));
+        ("age", (Jv.of_int 100));("books",
+                                   (Jv.of_list Jv.of_jstr
+                                      [Jstr.v "Alice in Wonderland"]))|] in
+  Format.printf "name: %s, nick_name: %a; age: %a; books: %a" (name o)
+    (let open Format in pp_print_option pp_print_string) (nick_name o)
+    (let open Format in pp_print_option pp_print_int) (age o)
+    (let open Format in pp_print_list pp_print_string)
+    ((books o) |> (List.map Jstr.to_string))

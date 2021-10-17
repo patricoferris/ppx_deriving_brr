@@ -1,0 +1,10 @@
+(library
+ (public_name ppx_deriving_brr)
+ (name ppx_deriving_brr)
+ (kind ppx_deriver)
+ (libraries ppxlib)
+ (preprocess
+  (pps ppxlib.metaquot)))
+
+(documentation
+ (package ppx_deriving_brr))
