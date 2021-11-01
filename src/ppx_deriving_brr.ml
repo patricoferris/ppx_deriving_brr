@@ -15,7 +15,6 @@
  *)
 
 open Ppxlib
-open Ast_builder.Default
 
 let generate_accessor_impl ~ctxt (_rec_flag, type_declarations) =
   let loc = Expansion_context.Deriver.derived_item_loc ctxt in

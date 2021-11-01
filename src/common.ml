@@ -24,7 +24,7 @@ let rec type_to_conv ?(to_ = false) typ =
       else [%expr Jv.of_array [%e conv]]
   | _ -> assert false
 
-let rec type_to_getter key typ =
+let type_to_getter key typ =
   let loc = typ.ptyp_loc in
   let key' = estring ~loc @@ snake_to_camel key in
   match typ with

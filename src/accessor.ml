@@ -1,5 +1,4 @@
 open Ppxlib
-open Utils
 open Ast_builder.Default
 
 let impl (ld : label_declaration) =
