@@ -3,3 +3,5 @@ val snake_to_camel : string -> string
 
 val conv_name : ?to_:bool -> string -> string
 (** [conv_name] converts the type name using the standard ppx way of doing things *)
+
+val conv_longident : ?to_:bool -> Longident.t -> Longident.t

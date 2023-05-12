@@ -22,7 +22,17 @@ let rec type_to_conv ?(to_ = false) typ =
       let conv = type_to_conv ~to_ typ' in
       if to_ then [%expr Jv.to_array [%e conv]]
       else [%expr Jv.of_array [%e conv]]
+  | { ptyp_desc = Ptyp_constr (label, args); _ } ->
+      let fwd =
+        function_app (Ast_helper.Exp.ident @@ { label with txt = (Utils.conv_longident ~to_:(not to_) label.txt) })
+        args
+      in
+      [%expr fun x -> [%e fwd] x]
   | _ -> assert false
+
+  and function_app f l =
+    if l = [] then f
+    else Ast_helper.Exp.apply f (List.map (fun e -> (Nolabel, e)) (List.map type_to_conv l))
 
 let type_to_getter key typ =
   let loc = typ.ptyp_loc in
@@ -49,6 +59,11 @@ let type_to_getter key typ =
       [%expr
         let jv = Jv.get jv [%e key'] in
         Jv.to_array [%e conv] jv]
+  | { ptyp_desc = Ptyp_constr _; _ } ->
+    let conv = type_to_conv ~to_:true typ in
+    [%expr
+      let jv = Jv.get jv [%e key'] in
+      [%e conv] jv]
   | _ -> assert false
 
 let rec type_to_setter key typ =
@@ -72,4 +87,7 @@ let rec type_to_setter key typ =
   | [%type: [%t? typ'] array] ->
       let conv = type_to_conv ~to_:false typ' in
       [%expr Jv.set jv [%e key'] (Jv.of_array [%e conv] [%e var])]
+  | { ptyp_desc = Ptyp_constr _; _ } ->
+      let conv = type_to_conv ~to_:false typ in
+      [%expr Jv.set jv [%e key'] ([%e conv] [%e var])]
   | _ -> assert false

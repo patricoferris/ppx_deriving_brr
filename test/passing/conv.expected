@@ -1,5 +1,19 @@
-type t = {
+type name = {
   name: string ;
+  nick: string }[@@deriving brr_jv]
+include
+  struct
+    let name_of_jv jv =
+      let nick = (Jv.Jstr.get jv "nick") |> Jstr.to_string in
+      let name = (Jv.Jstr.get jv "name") |> Jstr.to_string in { name; nick }
+    let name_to_jv { name; nick } =
+      let jv = Jv.obj [||] in
+      Jv.Jstr.set jv "nick" (Jstr.v nick);
+      Jv.Jstr.set jv "name" (Jstr.v name);
+      jv
+  end[@@ocaml.doc "@inline"][@@merlin.hide ]
+type t = {
+  name: name list ;
   age: int ;
   height: int option ;
   books: string list }[@@deriving brr_jv]
@@ -11,7 +25,8 @@ include
         let jv = Jv.get jv "height" in
         if Jv.is_none jv then None else Some (Jv.to_int jv) in
       let age = Jv.Int.get jv "age" in
-      let name = (Jv.Jstr.get jv "name") |> Jstr.to_string in
+      let name =
+        let jv = Jv.get jv "name" in Jv.to_list (fun x -> name_of_jv x) jv in
       { name; age; height; books }
     let to_jv { name; age; height; books } =
       let jv = Jv.obj [||] in
@@ -19,19 +34,24 @@ include
       ((function | None -> () | Some height -> Jv.Int.set jv "height" height))
         height;
       Jv.Int.set jv "age" age;
-      Jv.Jstr.set jv "name" (Jstr.v name);
+      Jv.set jv "name" (Jv.of_list (fun x -> name_to_jv x) name);
       jv
   end[@@ocaml.doc "@inline"][@@merlin.hide ]
 let pr { name; age; height; books } =
-  Format.printf "name: %s; age: %i; height: %a; books: %a" name age
-    (let open Format in pp_print_option pp_print_int) height
-    (let open Format in pp_print_list pp_print_string) books
+  Format.printf "name: %s; age: %i; height: %a; books: %a"
+    (List.hd name).name age (let open Format in pp_print_option pp_print_int)
+    height (let open Format in pp_print_list pp_print_string) books
 let () =
   let jv =
     Jv.obj
-      [|("name", (Jv.of_string "Bactrian"));("age", (Jv.of_int 100));
-        ("height", (Jv.of_int 200));("books",
-                                      (Jv.of_jstr_list
-                                         [Jstr.v "Alice in Wonderland"]))|] in
+      [|("name",
+          (Jv.of_jv_list
+             [Jv.obj
+                [|("name", (Jv.of_string "Bactrian"));("nick",
+                                                        (Jv.of_string "B"))|]]));
+        ("age", (Jv.of_int 100));("height", (Jv.of_int 200));("books",
+                                                               (Jv.of_jstr_list
+                                                                  [Jstr.v
+                                                                    "Alice in Wonderland"]))|] in
   let p = of_jv jv in
   let jv' = to_jv p in let p' = of_jv jv' in assert (p = p'); pr p
